@@ -5,7 +5,6 @@ import {
   doc,
   onSnapshot,
   query,
-  Timestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -193,6 +192,7 @@ function SubmitPage() {
 
       setSubmitPhase("saving");
       const createdAtMs = Date.now();
+      const createdAt = new Date(createdAtMs);
 
       await withTimeout(
         addDocLite(collectionLite(dbWrite, "donations"), {
@@ -201,7 +201,7 @@ function SubmitPage() {
           status: "new",
           reviewDecision: null,
           reviewNotes: "",
-          createdAt: Timestamp.now(),
+          createdAt,
           createdAtMs,
           reviewedAt: null,
         }),
@@ -432,7 +432,7 @@ function ReviewPage() {
       await updateDoc(doc(db, "donations", currentDonation.id), {
         status: decision,
         reviewDecision: decision,
-        reviewedAt: Timestamp.now(),
+        reviewedAt: new Date(),
       });
     } catch (reviewError) {
       console.error(reviewError);
