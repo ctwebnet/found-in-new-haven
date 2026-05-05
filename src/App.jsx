@@ -63,6 +63,23 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
   });
 }
 
+async function sendAdminNotification(payload) {
+  const response = await fetch("/api/notify-submission", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.error || "Admin email notification failed.");
+  }
+
+  return response.json().catch(() => ({}));
+}
+
 function getDateMs(value) {
   if (!value) {
     return 0;
@@ -242,7 +259,7 @@ function SubmitPage() {
       setSubmitPhase("saving");
       const createdAtMs = Date.now();
 
-      await withTimeout(
+      const docRef = await withTimeout(
         addDocLite(collectionLite(dbWrite, "donations"), {
           ...formData,
           photoUrl,
@@ -257,6 +274,25 @@ function SubmitPage() {
         "The donation record took too long to save. Please refresh and try again."
       );
 
+      let notificationWarning = "";
+
+      try {
+        await withTimeout(
+          sendAdminNotification({
+            donationId: docRef.id,
+            ...formData,
+            photoUrl,
+            createdAtMs,
+          }),
+          10000,
+          "Admin email notification timed out."
+        );
+      } catch (notificationError) {
+        console.error(notificationError);
+        notificationWarning =
+          " Your submission was saved, but the admin email alert could not be sent.";
+      }
+
       setFormData(initialForm);
       setPhotoFile(null);
       if (fileInputRef.current) {
@@ -266,7 +302,7 @@ function SubmitPage() {
       setUploadProgress(0);
       setShowSlowMessage(false);
       setMessage(
-        "Thank you. Your submission has been received and will be reviewed by museum staff."
+        `Thank you. Your submission has been received and will be reviewed by museum staff.${notificationWarning}`
       );
     } catch (submitError) {
       setSubmitPhase("error");
