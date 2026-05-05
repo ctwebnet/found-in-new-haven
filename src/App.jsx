@@ -212,6 +212,7 @@ function Layout({ children }) {
         <nav className="nav-links">
           <Link to="/submit">Submit</Link>
           <Link to="/review">Admin Review</Link>
+          <Link to="/admin/content">Content Control</Link>
         </nav>
       </header>
       <main className="page">{children}</main>
@@ -680,8 +681,7 @@ function AdminGate({ onAuthenticated }) {
   );
 }
 
-function ReviewPage() {
-  const intakeSettings = useIntakeSettings();
+function AdminProtectedRoute({ children }) {
   const [isAuthed, setIsAuthed] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -689,13 +689,42 @@ function ReviewPage() {
 
     return window.localStorage.getItem(adminSessionKey) === "granted";
   });
-  const [activeFilter, setActiveFilter] = useState("new");
-  const [donations, setDonations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [isReviewing, setIsReviewing] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
-  const [historyIndex, setHistoryIndex] = useState(0);
+
+  if (!isAuthed) {
+    return <AdminGate onAuthenticated={setIsAuthed} />;
+  }
+
+  return children;
+}
+
+function AdminToolbar() {
+  function handleLogout() {
+    window.localStorage.removeItem(adminSessionKey);
+    window.location.reload();
+  }
+
+  return (
+    <div className="review-toolbar">
+      <div className="section-heading">
+        <p className="eyebrow">Museum Admin</p>
+      </div>
+      <div className="hero-actions">
+        <Link className="button button-tertiary" to="/review">
+          Review Queue
+        </Link>
+        <Link className="button button-tertiary" to="/admin/content">
+          Content Control
+        </Link>
+        <button className="button button-tertiary" onClick={handleLogout} type="button">
+          Lock Review
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ContentControlPage() {
+  const intakeSettings = useIntakeSettings();
   const [intakeDraft, setIntakeDraft] = useState(defaultIntakeSettings);
   const [isSavingIntake, setIsSavingIntake] = useState(false);
   const [intakeMessage, setIntakeMessage] = useState("");
@@ -704,11 +733,102 @@ function ReviewPage() {
     setIntakeDraft(intakeSettings);
   }, [intakeSettings]);
 
-  useEffect(() => {
-    if (!isAuthed) {
-      return undefined;
-    }
+  async function handleIntakeSave(event) {
+    event.preventDefault();
+    setIsSavingIntake(true);
+    setIntakeMessage("");
 
+    try {
+      await setDocLite(docLite(dbWrite, ...intakeDocPath), intakeDraft, { merge: true });
+      setIntakeMessage("Collecting priorities updated.");
+    } catch (saveError) {
+      console.error(saveError);
+      setIntakeMessage("Could not update collecting priorities.");
+    } finally {
+      setIsSavingIntake(false);
+    }
+  }
+
+  return (
+    <AdminProtectedRoute>
+      <Layout>
+        <section className="review-shell">
+          <AdminToolbar />
+
+          <section className="intake-editor">
+            <div className="section-heading">
+              <p className="eyebrow">Collecting Priorities</p>
+              <h2>Set the public donation call</h2>
+              <p className="section-copy">
+                This text appears on the homepage and submission form so donors can
+                respond to a specific request or make a general offer.
+              </p>
+            </div>
+
+            <form className="admin-form" onSubmit={handleIntakeSave}>
+              <label>
+                Call title
+                <input
+                  value={intakeDraft.activeCallTitle}
+                  onChange={(event) =>
+                    setIntakeDraft((current) => ({
+                      ...current,
+                      activeCallTitle: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
+              <label>
+                Call description
+                <textarea
+                  rows="4"
+                  value={intakeDraft.activeCallDescription}
+                  onChange={(event) =>
+                    setIntakeDraft((current) => ({
+                      ...current,
+                      activeCallDescription: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
+              <label>
+                Donor disclosure
+                <textarea
+                  rows="5"
+                  value={intakeDraft.submissionDisclosure}
+                  onChange={(event) =>
+                    setIntakeDraft((current) => ({
+                      ...current,
+                      submissionDisclosure: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </label>
+              <button className="button button-primary" disabled={isSavingIntake} type="submit">
+                {isSavingIntake ? "Saving..." : "Save Collecting Priorities"}
+              </button>
+              {intakeMessage ? <p className="message file-meta">{intakeMessage}</p> : null}
+            </form>
+          </section>
+        </section>
+      </Layout>
+    </AdminProtectedRoute>
+  );
+}
+
+function ReviewPage() {
+  const [activeFilter, setActiveFilter] = useState("new");
+  const [donations, setDonations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  useEffect(() => {
     setIsLoading(true);
     setError("");
     setHistoryIndex(0);
@@ -743,7 +863,7 @@ function ReviewPage() {
     );
 
     return () => unsubscribe();
-  }, [activeFilter, isAuthed]);
+  }, [activeFilter]);
 
   const currentDonation = useMemo(() => {
     if (activeFilter === "new") {
@@ -793,35 +913,12 @@ function ReviewPage() {
     }
   }
 
-  function handleLogout() {
-    window.localStorage.removeItem(adminSessionKey);
-    setIsAuthed(false);
-  }
-
-  async function handleIntakeSave(event) {
-    event.preventDefault();
-    setIsSavingIntake(true);
-    setIntakeMessage("");
-
-    try {
-      await setDocLite(docLite(dbWrite, ...intakeDocPath), intakeDraft, { merge: true });
-      setIntakeMessage("Collecting priorities updated.");
-    } catch (saveError) {
-      console.error(saveError);
-      setIntakeMessage("Could not update collecting priorities.");
-    } finally {
-      setIsSavingIntake(false);
-    }
-  }
-
-  if (!isAuthed) {
-    return <AdminGate onAuthenticated={setIsAuthed} />;
-  }
-
   return (
-    <Layout>
-      <section className="review-shell">
-        <div className="review-toolbar">
+    <AdminProtectedRoute>
+      <Layout>
+        <section className="review-shell">
+          <AdminToolbar />
+
           <div className="section-heading">
             <p className="eyebrow">Museum Review Console</p>
             <h2>Assess new donations and browse past decisions</h2>
@@ -830,71 +927,8 @@ function ReviewPage() {
               maybe, and passed items by filter.
             </p>
           </div>
-          <button className="button button-tertiary" onClick={handleLogout} type="button">
-            Lock Review
-          </button>
-        </div>
 
-        <section className="intake-editor">
-          <div className="section-heading">
-            <p className="eyebrow">Collecting Priorities</p>
-            <h2>Set the public donation call</h2>
-            <p className="section-copy">
-              This text appears on the homepage and submission form so donors can
-              respond to a specific request or make a general offer.
-            </p>
-          </div>
-
-          <form className="admin-form" onSubmit={handleIntakeSave}>
-            <label>
-              Call title
-              <input
-                value={intakeDraft.activeCallTitle}
-                onChange={(event) =>
-                  setIntakeDraft((current) => ({
-                    ...current,
-                    activeCallTitle: event.target.value,
-                  }))
-                }
-                required
-              />
-            </label>
-            <label>
-              Call description
-              <textarea
-                rows="4"
-                value={intakeDraft.activeCallDescription}
-                onChange={(event) =>
-                  setIntakeDraft((current) => ({
-                    ...current,
-                    activeCallDescription: event.target.value,
-                  }))
-                }
-                required
-              />
-            </label>
-            <label>
-              Donor disclosure
-              <textarea
-                rows="5"
-                value={intakeDraft.submissionDisclosure}
-                onChange={(event) =>
-                  setIntakeDraft((current) => ({
-                    ...current,
-                    submissionDisclosure: event.target.value,
-                  }))
-                }
-                required
-              />
-            </label>
-            <button className="button button-primary" disabled={isSavingIntake} type="submit">
-              {isSavingIntake ? "Saving..." : "Save Collecting Priorities"}
-            </button>
-            {intakeMessage ? <p className="message file-meta">{intakeMessage}</p> : null}
-          </form>
-        </section>
-
-        <div className="filter-row">
+          <div className="filter-row">
           {reviewFilters.map((filter) => (
             <button
               key={filter.key}
@@ -918,39 +952,39 @@ function ReviewPage() {
           </div>
         ) : null}
 
-        {!isLoading && !error && currentDonation ? (
-          <>
-            {activeFilter !== "new" ? (
-              <div className="history-header">
-                <span className="message file-meta">
-                  Viewing {historyIndex + 1} of {donations.length}
-                </span>
-                <div className="history-actions">
-                  <button
-                    className="button button-tertiary"
-                    disabled={historyIndex === 0}
-                    onClick={() => setHistoryIndex((current) => Math.max(current - 1, 0))}
-                    type="button"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    className="button button-tertiary"
-                    disabled={historyIndex >= donations.length - 1}
-                    onClick={() =>
-                      setHistoryIndex((current) =>
-                        Math.min(current + 1, donations.length - 1)
-                      )
-                    }
-                    type="button"
-                  >
-                    Next
-                  </button>
+          {!isLoading && !error && currentDonation ? (
+            <>
+              {activeFilter !== "new" ? (
+                <div className="history-header">
+                  <span className="message file-meta">
+                    Viewing {historyIndex + 1} of {donations.length}
+                  </span>
+                  <div className="history-actions">
+                    <button
+                      className="button button-tertiary"
+                      disabled={historyIndex === 0}
+                      onClick={() => setHistoryIndex((current) => Math.max(current - 1, 0))}
+                      type="button"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      className="button button-tertiary"
+                      disabled={historyIndex >= donations.length - 1}
+                      onClick={() =>
+                        setHistoryIndex((current) =>
+                          Math.min(current + 1, donations.length - 1)
+                        )
+                      }
+                      type="button"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            <article className="review-card">
+              <article className="review-card">
               {currentPhotoUrls[0] && !imageFailed ? (
                 <img
                   className="review-image"
@@ -1063,11 +1097,12 @@ function ReviewPage() {
                   </p>
                 )}
               </div>
-            </article>
-          </>
-        ) : null}
-      </section>
-    </Layout>
+              </article>
+            </>
+          ) : null}
+        </section>
+      </Layout>
+    </AdminProtectedRoute>
   );
 }
 
@@ -1077,6 +1112,7 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/submit" element={<SubmitPage />} />
       <Route path="/review" element={<ReviewPage />} />
+      <Route path="/admin/content" element={<ContentControlPage />} />
     </Routes>
   );
 }
