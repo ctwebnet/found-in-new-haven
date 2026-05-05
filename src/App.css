@@ -1,9 +1,7 @@
 :root {
-  font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
-  color: #182022;
-  background:
-    radial-gradient(circle at top, rgba(184, 202, 197, 0.55), transparent 28%),
-    linear-gradient(180deg, #f2ebde 0%, #f8f4ee 100%);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #141414;
+  background: linear-gradient(180deg, #f0eadd 0%, #f8f4ed 100%);
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -45,8 +43,8 @@ textarea {
   align-items: center;
   gap: 1rem;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid rgba(24, 32, 34, 0.08);
-  background: rgba(250, 247, 241, 0.86);
+  border-bottom: 1px solid rgba(20, 20, 20, 0.14);
+  background: rgba(255, 252, 247, 0.95);
   backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
@@ -60,16 +58,18 @@ textarea {
 }
 
 .brand {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Times New Roman", Times, serif;
   font-size: 1.55rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .brand-subtitle {
-  color: #6d665c;
-  font-size: 0.88rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  color: #5c5449;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -77,6 +77,9 @@ textarea {
   display: flex;
   gap: 1rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.9rem;
 }
 
 .page {
@@ -88,14 +91,14 @@ textarea {
 .hero,
 .panel,
 .review-shell {
-  background: rgba(255, 252, 247, 0.88);
-  border: 1px solid rgba(24, 32, 34, 0.08);
-  border-radius: 30px;
-  box-shadow: 0 28px 70px rgba(64, 54, 41, 0.09);
+  background: rgba(255, 252, 247, 0.97);
+  border: 1px solid rgba(20, 20, 20, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 20px 45px rgba(22, 18, 15, 0.08);
 }
 
 .hero {
-  padding: 3rem;
+  padding: 3.2rem;
 }
 
 .hero-grid {
@@ -109,34 +112,36 @@ textarea {
 .section-heading h2,
 .review-content h3 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  line-height: 1.02;
-  color: #1f1c19;
+  font-family: "Times New Roman", Times, serif;
+  line-height: 0.95;
+  color: #111;
+  text-transform: uppercase;
 }
 
 .hero h1 {
-  max-width: 11ch;
-  font-size: clamp(3.2rem, 7vw, 5.9rem);
+  max-width: 9ch;
+  font-size: clamp(3.5rem, 8vw, 6.4rem);
+  letter-spacing: 0.02em;
 }
 
 .eyebrow {
   margin: 0 0 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  font-size: 0.72rem;
   font-weight: 800;
-  color: #8d4b31;
+  color: #8d5d2f;
 }
 
 .hero-copy,
 .section-copy {
-  color: #4f4b45;
+  color: #3f3a34;
   max-width: 46rem;
 }
 
 .hero-copy {
   margin: 1.2rem 0 0;
-  font-size: 1.16rem;
+  font-size: 1.1rem;
 }
 
 .hero-copy-secondary {
@@ -148,38 +153,42 @@ textarea {
 .intake-editor {
   margin-bottom: 1.5rem;
   padding: 1.25rem 1.5rem;
-  border-radius: 24px;
+  border-radius: 8px;
 }
 
 .callout-box {
   margin-top: 1.5rem;
-  background: rgba(233, 226, 208, 0.72);
-  border: 1px solid rgba(141, 75, 49, 0.14);
+  background: #e9ddc8;
+  border-left: 6px solid #111;
+  border-top: 1px solid rgba(20, 20, 20, 0.08);
+  border-right: 1px solid rgba(20, 20, 20, 0.08);
+  border-bottom: 1px solid rgba(20, 20, 20, 0.08);
 }
 
 .callout-box h3 {
   margin: 0 0 0.6rem;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.45rem;
-  color: #1f1c19;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 1.6rem;
+  color: #111;
+  text-transform: uppercase;
 }
 
 .disclosure-box {
-  background: rgba(246, 241, 232, 0.95);
-  border: 1px solid rgba(24, 32, 34, 0.09);
+  background: #f4eee4;
+  border: 1px solid rgba(20, 20, 20, 0.1);
 }
 
 .hero-note {
-  background: linear-gradient(180deg, rgba(227, 215, 193, 0.5), rgba(255, 252, 247, 0.9));
-  border: 1px solid rgba(141, 75, 49, 0.12);
-  border-radius: 26px;
+  background: #171717;
+  border: 1px solid #171717;
+  border-radius: 10px;
   padding: 1.5rem;
 }
 
 .hero-list {
   margin: 0;
   padding-left: 1.1rem;
-  color: #4d483f;
+  color: #f4ecde;
 }
 
 .hero-list li + li {
@@ -223,19 +232,19 @@ textarea {
 }
 
 .button-primary {
-  background: #1f5c58;
+  background: #111;
   color: #fff;
-  box-shadow: 0 12px 26px rgba(31, 92, 88, 0.2);
+  box-shadow: 0 12px 26px rgba(17, 17, 17, 0.18);
 }
 
 .button-secondary {
-  background: #ebdbc0;
-  color: #4a2b18;
+  background: #d6bf8c;
+  color: #181512;
 }
 
 .button-tertiary {
-  background: #ebe5dd;
-  color: #2f2a25;
+  background: #efe7db;
+  color: #2a241f;
 }
 
 .panel,
@@ -246,16 +255,17 @@ textarea {
 .confirmation-banner {
   margin-bottom: 1.5rem;
   padding: 1.25rem 1.5rem;
-  border-radius: 24px;
-  background: rgba(222, 239, 225, 0.92);
-  border: 1px solid rgba(32, 102, 60, 0.16);
+  border-radius: 8px;
+  background: #f1e3c5;
+  border-left: 6px solid #111;
 }
 
 .confirmation-banner h3 {
   margin: 0 0 1rem;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.7rem;
-  color: #1f1c19;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 1.85rem;
+  color: #111;
+  text-transform: uppercase;
 }
 
 .section-heading {
@@ -295,7 +305,7 @@ textarea {
 .admin-form textarea {
   width: 100%;
   border: 1px solid #d9d0c2;
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 0.9rem 1rem;
   background: #fffdf9;
   color: #1d1d1b;
@@ -308,7 +318,7 @@ textarea {
 .field-hint {
   font-size: 0.9rem;
   font-weight: 500;
-  color: #6c675d;
+  color: #61584d;
 }
 
 .full-width {
@@ -348,8 +358,8 @@ textarea {
 }
 
 .intake-editor {
-  background: rgba(243, 236, 227, 0.78);
-  border: 1px solid rgba(24, 32, 34, 0.08);
+  background: #f2ebe0;
+  border: 1px solid rgba(20, 20, 20, 0.1);
 }
 
 .filter-row {
@@ -357,9 +367,9 @@ textarea {
 }
 
 .filter-pill {
-  border: 1px solid rgba(24, 32, 34, 0.12);
-  background: rgba(241, 235, 225, 0.85);
-  color: #40382f;
+  border: 1px solid rgba(20, 20, 20, 0.12);
+  background: rgba(242, 235, 224, 0.95);
+  color: #2f2a25;
   border-radius: 999px;
   padding: 0.75rem 1rem;
   font-weight: 800;
@@ -367,16 +377,16 @@ textarea {
 }
 
 .filter-pill.is-active {
-  background: #1f5c58;
+  background: #111;
   color: #fff;
-  border-color: #1f5c58;
+  border-color: #111;
 }
 
 .empty-state {
   padding: 3rem 1.5rem;
   text-align: center;
-  border-radius: 24px;
-  background: rgba(252, 249, 243, 0.9);
+  border-radius: 8px;
+  background: rgba(252, 249, 243, 0.95);
   color: #504c45;
 }
 
@@ -392,9 +402,9 @@ textarea {
   display: grid;
   grid-template-columns: minmax(300px, 420px) minmax(0, 1fr);
   overflow: hidden;
-  border-radius: 24px;
+  border-radius: 10px;
   background: #fffdf9;
-  border: 1px solid rgba(29, 29, 27, 0.08);
+  border: 1px solid rgba(20, 20, 20, 0.1);
 }
 
 .review-image {
@@ -423,8 +433,9 @@ textarea {
 }
 
 .review-content h3 {
-  font-size: clamp(2rem, 4vw, 3.15rem);
+  font-size: clamp(2rem, 4vw, 3.3rem);
   margin-top: 0.85rem;
+  letter-spacing: 0.01em;
 }
 
 .review-description {
@@ -447,7 +458,7 @@ textarea {
 }
 
 .review-links a {
-  color: #1f5c58;
+  color: #111;
   text-decoration: underline;
   overflow-wrap: anywhere;
 }
@@ -472,23 +483,23 @@ textarea {
 }
 
 .pill {
-  background: #f2e4cf;
-  color: #694029;
+  background: #e8d6b3;
+  color: #4b311c;
 }
 
 .status-accepted {
-  background: #dcefdc;
-  color: #24522d;
+  background: #d8e6cf;
+  color: #233c22;
 }
 
 .status-maybe {
-  background: #f7e9c9;
-  color: #7c5911;
+  background: #ecdcb8;
+  color: #6a4c10;
 }
 
 .status-passed {
-  background: #ece8e2;
-  color: #5e5549;
+  background: #e8e0d4;
+  color: #564d44;
 }
 
 .detail-grid {
