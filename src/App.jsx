@@ -48,6 +48,25 @@ function buildStorageFileName(fileName = "upload") {
   return `${Date.now()}-${cleanName}`;
 }
 
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (reason) => {
+        window.clearTimeout(timeoutId);
+        reject(reason);
+      }
+    );
+  });
+}
+
 function Layout({ children }) {
   return (
     <div className="app-shell">
@@ -97,6 +116,7 @@ function SubmitPage() {
   const [error, setError] = useState("");
   const [submitPhase, setSubmitPhase] = useState("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showSlowMessage, setShowSlowMessage] = useState(false);
   const fileInputRef = useRef(null);
 
   function handleChange(event) {
@@ -119,6 +139,11 @@ function SubmitPage() {
     setError("");
     setSubmitPhase(photoFile ? "uploading" : "saving");
     setUploadProgress(0);
+    setShowSlowMessage(false);
+
+    const slowMessageTimer = window.setTimeout(() => {
+      setShowSlowMessage(true);
+    }, 2500);
 
     try {
       let photoUrl = "";
@@ -144,19 +169,25 @@ function SubmitPage() {
           );
         });
 
-        setSubmitPhase("saving");
+        setSubmitPhase("linking");
         photoUrl = await getDownloadURL(uploadResult.ref);
       }
 
-      await addDoc(collection(db, "donations"), {
-        ...formData,
-        photoUrl,
-        status: "new",
-        reviewDecision: null,
-        reviewNotes: "",
-        createdAt: serverTimestamp(),
-        reviewedAt: null,
-      });
+      setSubmitPhase("saving");
+
+      await withTimeout(
+        addDoc(collection(db, "donations"), {
+          ...formData,
+          photoUrl,
+          status: "new",
+          reviewDecision: null,
+          reviewNotes: "",
+          createdAt: serverTimestamp(),
+          reviewedAt: null,
+        }),
+        15000,
+        "The donation record took too long to save. Please refresh and try again."
+      );
 
       setFormData(initialForm);
       setPhotoFile(null);
@@ -165,12 +196,16 @@ function SubmitPage() {
       }
       setSubmitPhase("success");
       setUploadProgress(0);
+      setShowSlowMessage(false);
       setMessage("Donation submitted successfully.");
     } catch (submitError) {
       setSubmitPhase("error");
-      setError("Could not submit the donation. Please try again.");
+      setError(
+        submitError?.message || "Could not submit the donation. Please try again."
+      );
       console.error(submitError);
     } finally {
+      window.clearTimeout(slowMessageTimer);
       setIsSubmitting(false);
     }
   }
@@ -288,6 +323,16 @@ function SubmitPage() {
                 Saving donation record...
               </p>
             ) : null}
+            {isSubmitting && submitPhase === "linking" ? (
+              <p className="message file-meta">
+                Preparing the photo for your donation record...
+              </p>
+            ) : null}
+            {isSubmitting && showSlowMessage ? (
+              <p className="message file-meta">
+                This can take a moment on the live site. Please keep this page open.
+              </p>
+            ) : null}
             <button
               className="button button-primary"
               type="submit"
@@ -296,6 +341,8 @@ function SubmitPage() {
               {isSubmitting
                 ? submitPhase === "uploading"
                   ? "Uploading Photo..."
+                  : submitPhase === "linking"
+                    ? "Preparing Photo..."
                   : "Saving Donation..."
                 : "Submit Donation"}
             </button>
