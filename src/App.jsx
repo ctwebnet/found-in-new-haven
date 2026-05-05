@@ -12,7 +12,11 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import {
+  getDownloadURL,
+  ref,
+  uploadBytesResumable,
+} from "firebase/storage";
 import { db, storage } from "./firebase";
 
 const categories = [
@@ -91,6 +95,8 @@ function SubmitPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [submitPhase, setSubmitPhase] = useState("idle");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
 
   function handleChange(event) {
@@ -111,6 +117,8 @@ function SubmitPage() {
     setIsSubmitting(true);
     setMessage("");
     setError("");
+    setSubmitPhase(photoFile ? "uploading" : "saving");
+    setUploadProgress(0);
 
     try {
       let photoUrl = "";
@@ -120,7 +128,23 @@ function SubmitPage() {
           storage,
           `donations/${buildStorageFileName(photoFile.name)}`
         );
-        const uploadResult = await uploadBytes(storageRef, photoFile);
+        const uploadTask = uploadBytesResumable(storageRef, photoFile);
+
+        const uploadResult = await new Promise((resolve, reject) => {
+          uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+              const progress = Math.round(
+                (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+              );
+              setUploadProgress(progress);
+            },
+            reject,
+            () => resolve(uploadTask.snapshot)
+          );
+        });
+
+        setSubmitPhase("saving");
         photoUrl = await getDownloadURL(uploadResult.ref);
       }
 
@@ -139,8 +163,11 @@ function SubmitPage() {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+      setSubmitPhase("success");
+      setUploadProgress(0);
       setMessage("Donation submitted successfully.");
     } catch (submitError) {
+      setSubmitPhase("error");
       setError("Could not submit the donation. Please try again.");
       console.error(submitError);
     } finally {
@@ -251,12 +278,26 @@ function SubmitPage() {
             {photoFile ? (
               <p className="message file-meta">Selected file: {photoFile.name}</p>
             ) : null}
+            {isSubmitting && submitPhase === "uploading" ? (
+              <p className="message file-meta">
+                Uploading photo... {uploadProgress}%
+              </p>
+            ) : null}
+            {isSubmitting && submitPhase === "saving" ? (
+              <p className="message file-meta">
+                Saving donation record...
+              </p>
+            ) : null}
             <button
               className="button button-primary"
               type="submit"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Submitting..." : "Submit Donation"}
+              {isSubmitting
+                ? submitPhase === "uploading"
+                  ? "Uploading Photo..."
+                  : "Saving Donation..."
+                : "Submit Donation"}
             </button>
             {message ? <p className="message success">{message}</p> : null}
             {error ? <p className="message error">{error}</p> : null}
