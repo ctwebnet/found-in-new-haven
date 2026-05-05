@@ -1,23 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import {
-  addDoc,
   collection,
   doc,
-  limit,
   onSnapshot,
-  orderBy,
   query,
-  serverTimestamp,
+  Timestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
+import {
+  addDoc as addDocLite,
+  collection as collectionLite,
+} from "firebase/firestore/lite";
 import {
   getDownloadURL,
   ref,
   uploadBytesResumable,
 } from "firebase/storage";
-import { db, storage } from "./firebase";
+import { db, dbWrite, storage } from "./firebase";
 
 const categories = [
   "Photos & Documents",
@@ -65,6 +66,23 @@ function withTimeout(promise, timeoutMs, timeoutMessage) {
       }
     );
   });
+}
+
+function getDonationCreatedAtMs(donation) {
+  if (typeof donation.createdAtMs === "number") {
+    return donation.createdAtMs;
+  }
+
+  if (donation.createdAt && typeof donation.createdAt.seconds === "number") {
+    return donation.createdAt.seconds * 1000;
+  }
+
+  if (typeof donation.createdAt === "string") {
+    const parsed = Date.parse(donation.createdAt);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+
+  return 0;
 }
 
 function Layout({ children }) {
@@ -174,15 +192,17 @@ function SubmitPage() {
       }
 
       setSubmitPhase("saving");
+      const createdAtMs = Date.now();
 
       await withTimeout(
-        addDoc(collection(db, "donations"), {
+        addDocLite(collectionLite(dbWrite, "donations"), {
           ...formData,
           photoUrl,
           status: "new",
           reviewDecision: null,
           reviewNotes: "",
-          createdAt: serverTimestamp(),
+          createdAt: Timestamp.now(),
+          createdAtMs,
           reviewedAt: null,
         }),
         15000,
@@ -364,20 +384,20 @@ function ReviewPage() {
 
   useEffect(() => {
     const donationsRef = collection(db, "donations");
-    const reviewQuery = query(
-      donationsRef,
-      where("status", "==", "new"),
-      orderBy("createdAt", "asc"),
-      limit(1)
-    );
+    const reviewQuery = query(donationsRef, where("status", "==", "new"));
 
     const unsubscribe = onSnapshot(
       reviewQuery,
       (snapshot) => {
-        const nextDonations = snapshot.docs.map((snapshotDoc) => ({
-          id: snapshotDoc.id,
-          ...snapshotDoc.data(),
-        }));
+        const nextDonations = snapshot.docs
+          .map((snapshotDoc) => ({
+            id: snapshotDoc.id,
+            ...snapshotDoc.data(),
+          }))
+          .sort(
+            (left, right) =>
+              getDonationCreatedAtMs(left) - getDonationCreatedAtMs(right)
+          );
         setDonations(nextDonations);
         setIsLoading(false);
         setError("");
@@ -412,7 +432,7 @@ function ReviewPage() {
       await updateDoc(doc(db, "donations", currentDonation.id), {
         status: decision,
         reviewDecision: decision,
-        reviewedAt: serverTimestamp(),
+        reviewedAt: Timestamp.now(),
       });
     } catch (reviewError) {
       console.error(reviewError);

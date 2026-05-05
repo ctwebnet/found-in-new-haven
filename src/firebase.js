@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { initializeFirestore } from "firebase/firestore";
+import { getFirestore as getLiteFirestore } from "firebase/firestore/lite";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -17,4 +18,5 @@ export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
   useFetchStreams: false,
 });
+export const dbWrite = getLiteFirestore(app);
 export const storage = getStorage(app);
