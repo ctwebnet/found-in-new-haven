@@ -6,16 +6,13 @@ import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { db, dbWrite, storage } from "./firebase";
 
 const categories = [
+  "Signs",
+  "Physical Objects & Artifacts",
   "Photos & Documents",
-  "Architecture & Design",
-  "Schools & Universities",
+  "Printed Materials (flyers, brochures, newspapers)",
+  "Architecture & Buildings",
   "Businesses & Storefronts",
-  "Music, Art & Culture",
-  "Civic Life & Politics",
-  "Neighborhood Life",
-  "Transportation",
-  "Manufacturing & Industry",
-  "Personal Story",
+  "Personal Stories",
   "Other",
 ];
 
@@ -29,11 +26,14 @@ const reviewFilters = [
 const initialForm = {
   title: "",
   description: "",
+  notes: "",
   donorName: "",
   donorEmail: "",
   neighborhood: "",
   estimatedDate: "",
   category: categories[0],
+  photoUrlsInput: "",
+  linksInput: "",
 };
 
 const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || "";
@@ -130,6 +130,33 @@ function formatDate(value) {
   }).format(new Date(dateMs));
 }
 
+function parseCommaSeparatedUrls(value) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getDonationPhotoUrls(donation) {
+  if (Array.isArray(donation.photoUrls) && donation.photoUrls.length > 0) {
+    return donation.photoUrls;
+  }
+
+  if (donation.photoUrl) {
+    return [donation.photoUrl];
+  }
+
+  return [];
+}
+
+function getDonationLinks(donation) {
+  if (Array.isArray(donation.links)) {
+    return donation.links;
+  }
+
+  return [];
+}
+
 function Layout({ children }) {
   return (
     <div className="app-shell">
@@ -193,13 +220,14 @@ function HomePage() {
 
 function SubmitPage() {
   const [formData, setFormData] = useState(initialForm);
-  const [photoFile, setPhotoFile] = useState(null);
+  const [photoFiles, setPhotoFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitPhase, setSubmitPhase] = useState("idle");
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [showSlowMessage, setShowSlowMessage] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const formTopRef = useRef(null);
   const fileInputRef = useRef(null);
 
   function handleChange(event) {
@@ -211,8 +239,8 @@ function SubmitPage() {
   }
 
   function handleFileChange(event) {
-    const nextFile = event.target.files?.[0] ?? null;
-    setPhotoFile(nextFile);
+    const nextFiles = Array.from(event.target.files || []);
+    setPhotoFiles(nextFiles);
   }
 
   async function handleSubmit(event) {
@@ -220,8 +248,8 @@ function SubmitPage() {
     setIsSubmitting(true);
     setMessage("");
     setError("");
-    setSubmitPhase(photoFile ? "uploading" : "saving");
-    setUploadProgress(0);
+    setShowConfirmation(false);
+    setSubmitPhase(photoFiles.length ? "uploading" : "saving");
     setShowSlowMessage(false);
 
     const slowMessageTimer = window.setTimeout(() => {
@@ -229,40 +257,47 @@ function SubmitPage() {
     }, 2500);
 
     try {
-      let photoUrl = "";
+      const createdAtMs = Date.now();
+      const photoUrls = parseCommaSeparatedUrls(formData.photoUrlsInput);
+      const links = parseCommaSeparatedUrls(formData.linksInput);
+      const uploadedPhotoUrls = [];
 
-      if (photoFile) {
-        const storageRef = ref(
-          storage,
-          `donations/${buildStorageFileName(photoFile.name)}`
-        );
-        const uploadTask = uploadBytesResumable(storageRef, photoFile);
-
-        const uploadResult = await new Promise((resolve, reject) => {
-          uploadTask.on(
-            "state_changed",
-            (snapshot) => {
-              const progress = Math.round(
-                (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-              );
-              setUploadProgress(progress);
-            },
-            reject,
-            () => resolve(uploadTask.snapshot)
+      if (photoFiles.length) {
+        for (const photoFile of photoFiles) {
+          const storageRef = ref(
+            storage,
+            `donations/${buildStorageFileName(photoFile.name)}`
           );
-        });
+          const uploadTask = uploadBytesResumable(storageRef, photoFile);
 
-        setSubmitPhase("linking");
-        photoUrl = await getDownloadURL(uploadResult.ref);
+          const uploadResult = await new Promise((resolve, reject) => {
+            uploadTask.on("state_changed", undefined, reject, () =>
+              resolve(uploadTask.snapshot)
+            );
+          });
+
+          uploadedPhotoUrls.push(await getDownloadURL(uploadResult.ref));
+        }
       }
 
       setSubmitPhase("saving");
-      const createdAtMs = Date.now();
+      const allPhotoUrls = [...photoUrls, ...uploadedPhotoUrls];
+      const submissionPayload = {
+        title: formData.title,
+        description: formData.description,
+        notes: formData.notes,
+        donorName: formData.donorName,
+        donorEmail: formData.donorEmail,
+        neighborhood: formData.neighborhood,
+        estimatedDate: formData.estimatedDate,
+        category: formData.category,
+        photoUrls: allPhotoUrls,
+        links,
+      };
 
       const docRef = await withTimeout(
         addDocLite(collectionLite(dbWrite, "donations"), {
-          ...formData,
-          photoUrl,
+          ...submissionPayload,
           status: "new",
           reviewDecision: null,
           reviewNotes: "",
@@ -280,8 +315,7 @@ function SubmitPage() {
         await withTimeout(
           sendAdminNotification({
             donationId: docRef.id,
-            ...formData,
-            photoUrl,
+            ...submissionPayload,
             createdAtMs,
           }),
           10000,
@@ -293,17 +327,22 @@ function SubmitPage() {
           " Your submission was saved, but the admin email alert could not be sent.";
       }
 
-      setFormData(initialForm);
-      setPhotoFile(null);
+      setFormData((current) => ({
+        ...initialForm,
+        donorName: current.donorName,
+        donorEmail: current.donorEmail,
+      }));
+      setPhotoFiles([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
       setSubmitPhase("success");
-      setUploadProgress(0);
       setShowSlowMessage(false);
+      setShowConfirmation(true);
       setMessage(
-        `Thank you. Your submission has been received and will be reviewed by museum staff.${notificationWarning}`
+        `Thank you! Your donation has been submitted.${notificationWarning}`
       );
+      formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (submitError) {
       setSubmitPhase("error");
       setError(
@@ -319,6 +358,21 @@ function SubmitPage() {
   return (
     <Layout>
       <section className="panel">
+        <div ref={formTopRef} />
+        {showConfirmation ? (
+          <div className="confirmation-banner">
+            <p className="eyebrow">Submission Received</p>
+            <h3>{message}</h3>
+            <button
+              className="button button-secondary"
+              onClick={() => setShowConfirmation(false)}
+              type="button"
+            >
+              Submit another object
+            </button>
+          </div>
+        ) : null}
+
         <div className="section-heading">
           <p className="eyebrow">Community Submission</p>
           <h2>Share something the museum should consider preserving</h2>
@@ -398,16 +452,29 @@ function SubmitPage() {
           </label>
 
           <label className="full-width">
-            Photo upload
+            Photo uploads
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               onChange={handleFileChange}
             />
             <span className="field-hint">
-              A quick reference photo helps staff review the item. JPG, PNG, and
-              HEIC are all fine for this MVP.
+              Upload one or more photos directly, or use the URL field below, or both.
+            </span>
+          </label>
+
+          <label className="full-width">
+            Photo URLs
+            <input
+              name="photoUrlsInput"
+              value={formData.photoUrlsInput}
+              onChange={handleChange}
+              placeholder="https://example.com/photo-1.jpg, https://example.com/photo-2.jpg"
+            />
+            <span className="field-hint">
+              Add one or more image URLs separated by commas.
             </span>
           </label>
 
@@ -417,25 +484,45 @@ function SubmitPage() {
               name="description"
               value={formData.description}
               onChange={handleChange}
-              rows="6"
-              placeholder="What is it? Who used it? Where was it found? Why does it matter?"
+              rows="4"
+              placeholder="Short physical description of the object"
               required
             />
           </label>
 
+          <label className="full-width">
+            Notes
+            <textarea
+              name="notes"
+              value={formData.notes}
+              onChange={handleChange}
+              rows="5"
+              placeholder="Historical context, story, or significance"
+              required
+            />
+          </label>
+
+          <label className="full-width">
+            External links
+            <input
+              name="linksInput"
+              value={formData.linksInput}
+              onChange={handleChange}
+              placeholder="https://example.com/article, https://example.com/archive"
+            />
+            <span className="field-hint">
+              Optional. Add one or more supporting URLs separated by commas.
+            </span>
+          </label>
+
           <div className="full-width form-footer">
-            {photoFile ? (
-              <p className="message file-meta">Selected file: {photoFile.name}</p>
+            {photoFiles.length ? (
+              <p className="message file-meta">
+                Selected uploads: {photoFiles.map((file) => file.name).join(", ")}
+              </p>
             ) : null}
             {isSubmitting && submitPhase === "uploading" ? (
-              <p className="message file-meta">
-                Uploading photo... {uploadProgress}%
-              </p>
-            ) : null}
-            {isSubmitting && submitPhase === "linking" ? (
-              <p className="message file-meta">
-                Preparing the photo for your donation record...
-              </p>
+              <p className="message file-meta">Uploading selected photos...</p>
             ) : null}
             {isSubmitting && submitPhase === "saving" ? (
               <p className="message file-meta">Saving donation record...</p>
@@ -448,13 +535,10 @@ function SubmitPage() {
             <button className="button button-primary" type="submit" disabled={isSubmitting}>
               {isSubmitting
                 ? submitPhase === "uploading"
-                  ? "Uploading Photo..."
-                  : submitPhase === "linking"
-                    ? "Preparing Photo..."
-                    : "Saving Donation..."
+                  ? "Uploading Photos..."
+                  : "Saving Donation..."
                 : "Submit for Review"}
             </button>
-            {message ? <p className="message success">{message}</p> : null}
             {error ? <p className="message error">{error}</p> : null}
           </div>
         </form>
@@ -585,10 +669,18 @@ function ReviewPage() {
 
     return donations[historyIndex] ?? null;
   }, [activeFilter, donations, historyIndex]);
+  const currentPhotoUrls = useMemo(
+    () => getDonationPhotoUrls(currentDonation ?? {}),
+    [currentDonation]
+  );
+  const currentLinks = useMemo(
+    () => getDonationLinks(currentDonation ?? {}),
+    [currentDonation]
+  );
 
   useEffect(() => {
     setImageFailed(false);
-  }, [currentDonation?.id, currentDonation?.photoUrl]);
+  }, [currentDonation?.id, currentDonation?.photoUrl, currentDonation?.photoUrls]);
 
   useEffect(() => {
     if (historyIndex > donations.length - 1) {
@@ -701,16 +793,16 @@ function ReviewPage() {
             ) : null}
 
             <article className="review-card">
-              {currentDonation.photoUrl && !imageFailed ? (
+              {currentPhotoUrls[0] && !imageFailed ? (
                 <img
                   className="review-image"
-                  src={currentDonation.photoUrl}
+                  src={currentPhotoUrls[0]}
                   alt={currentDonation.title}
                   onError={() => setImageFailed(true)}
                 />
               ) : (
                 <div className="review-image review-image-placeholder">
-                  {currentDonation.photoUrl ? "Photo could not be loaded" : "No photo provided"}
+                  {currentPhotoUrls[0] ? "Photo could not be loaded" : "No photo provided"}
                 </div>
               )}
 
@@ -725,6 +817,20 @@ function ReviewPage() {
                 </div>
                 <h3>{currentDonation.title}</h3>
                 <p className="review-description">{currentDonation.description}</p>
+                {currentDonation.notes ? (
+                  <p className="review-notes">{currentDonation.notes}</p>
+                ) : null}
+
+                {currentLinks.length ? (
+                  <div className="review-links">
+                    <p className="detail-label">Links</p>
+                    {currentLinks.map((link) => (
+                      <a key={link} href={link} target="_blank" rel="noreferrer">
+                        {link}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
 
                 <dl className="detail-grid">
                   <div>
@@ -754,6 +860,10 @@ function ReviewPage() {
                         ? formatDate(currentDonation.reviewedAt)
                         : "Not reviewed yet"}
                     </dd>
+                  </div>
+                  <div>
+                    <dt>Photos</dt>
+                    <dd>{currentPhotoUrls.length || 0}</dd>
                   </div>
                 </dl>
 

@@ -14,11 +14,19 @@ function escapeHtml(value = "") {
 }
 
 function renderHtml(submission) {
-  const photoMarkup = submission.photoUrl
-    ? `<p><strong>Photo:</strong> <a href="${escapeHtml(submission.photoUrl)}">${escapeHtml(
-        submission.photoUrl
-      )}</a></p>`
-    : "<p><strong>Photo:</strong> No photo provided</p>";
+  const photoMarkup = Array.isArray(submission.photoUrls) && submission.photoUrls.length
+    ? `<p><strong>Photos:</strong></p><ul>${submission.photoUrls
+        .map(
+          (photoUrl) =>
+            `<li><a href="${escapeHtml(photoUrl)}">${escapeHtml(photoUrl)}</a></li>`
+        )
+        .join("")}</ul>`
+    : "<p><strong>Photos:</strong> No photo URLs provided</p>";
+  const linksMarkup = Array.isArray(submission.links) && submission.links.length
+    ? `<p><strong>Links:</strong></p><ul>${submission.links
+        .map((link) => `<li><a href="${escapeHtml(link)}">${escapeHtml(link)}</a></li>`)
+        .join("")}</ul>`
+    : "<p><strong>Links:</strong> None provided</p>";
 
   return `
     <div style="font-family: Georgia, 'Times New Roman', serif; color: #1f1c19; line-height: 1.5;">
@@ -28,12 +36,14 @@ function renderHtml(submission) {
       <p><strong>Title:</strong> ${escapeHtml(submission.title)}</p>
       <p><strong>Category:</strong> ${escapeHtml(submission.category)}</p>
       <p><strong>Description:</strong><br />${escapeHtml(submission.description).replaceAll("\n", "<br />")}</p>
+      <p><strong>Notes:</strong><br />${escapeHtml(submission.notes || "None provided").replaceAll("\n", "<br />")}</p>
       <p><strong>Donor:</strong> ${escapeHtml(submission.donorName)}</p>
       <p><strong>Donor email:</strong> ${escapeHtml(submission.donorEmail)}</p>
       <p><strong>Neighborhood:</strong> ${escapeHtml(submission.neighborhood || "Not provided")}</p>
       <p><strong>Estimated date:</strong> ${escapeHtml(submission.estimatedDate || "Not provided")}</p>
       <p><strong>Donation ID:</strong> ${escapeHtml(submission.donationId)}</p>
       ${photoMarkup}
+      ${linksMarkup}
     </div>
   `;
 }
@@ -45,12 +55,22 @@ function renderText(submission) {
     `Title: ${submission.title}`,
     `Category: ${submission.category}`,
     `Description: ${submission.description}`,
+    `Notes: ${submission.notes || "None provided"}`,
     `Donor: ${submission.donorName}`,
     `Donor email: ${submission.donorEmail}`,
     `Neighborhood: ${submission.neighborhood || "Not provided"}`,
     `Estimated date: ${submission.estimatedDate || "Not provided"}`,
     `Donation ID: ${submission.donationId}`,
-    `Photo: ${submission.photoUrl || "No photo provided"}`,
+    `Photos: ${
+      Array.isArray(submission.photoUrls) && submission.photoUrls.length
+        ? submission.photoUrls.join(", ")
+        : "No photo URLs provided"
+    }`,
+    `Links: ${
+      Array.isArray(submission.links) && submission.links.length
+        ? submission.links.join(", ")
+        : "None provided"
+    }`,
   ].join("\n");
 }
 

@@ -217,6 +217,21 @@ textarea {
   padding: 2rem;
 }
 
+.confirmation-banner {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 24px;
+  background: rgba(222, 239, 225, 0.92);
+  border: 1px solid rgba(32, 102, 60, 0.16);
+}
+
+.confirmation-banner h3 {
+  margin: 0 0 1rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.7rem;
+  color: #1f1c19;
+}
+
 .section-heading {
   margin-bottom: 1.5rem;
 }
@@ -384,6 +399,34 @@ textarea {
   margin: 1rem 0 1.5rem;
   color: #4f4c43;
   white-space: pre-wrap;
+}
+
+.review-notes {
+  margin: -0.4rem 0 1.5rem;
+  color: #61584b;
+  white-space: pre-wrap;
+}
+
+.review-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.5rem;
+}
+
+.review-links a {
+  color: #1f5c58;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.detail-label {
+  margin: 0 0 0.2rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #786f62;
+  font-weight: 700;
 }
 
 .pill,
