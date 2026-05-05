@@ -34,6 +34,7 @@ function renderHtml(submission) {
       <p>A new Lost in New Haven donation has been submitted for review.</p>
       <hr style="border: none; border-top: 1px solid #ddd4c6; margin: 20px 0;" />
       <p><strong>Title:</strong> ${escapeHtml(submission.title)}</p>
+      <p><strong>Submission type:</strong> ${escapeHtml(submission.submissionType || "general")}</p>
       <p><strong>Category:</strong> ${escapeHtml(submission.category)}</p>
       <p><strong>Description:</strong><br />${escapeHtml(submission.description).replaceAll("\n", "<br />")}</p>
       <p><strong>Notes:</strong><br />${escapeHtml(submission.notes || "None provided").replaceAll("\n", "<br />")}</p>
@@ -53,6 +54,7 @@ function renderText(submission) {
     "New museum donation submission",
     "",
     `Title: ${submission.title}`,
+    `Submission type: ${submission.submissionType || "general"}`,
     `Category: ${submission.category}`,
     `Description: ${submission.description}`,
     `Notes: ${submission.notes || "None provided"}`,

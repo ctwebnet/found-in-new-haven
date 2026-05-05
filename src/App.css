@@ -143,6 +143,32 @@ textarea {
   max-width: 42rem;
 }
 
+.callout-box,
+.disclosure-box,
+.intake-editor {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 24px;
+}
+
+.callout-box {
+  margin-top: 1.5rem;
+  background: rgba(233, 226, 208, 0.72);
+  border: 1px solid rgba(141, 75, 49, 0.14);
+}
+
+.callout-box h3 {
+  margin: 0 0 0.6rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+  color: #1f1c19;
+}
+
+.disclosure-box {
+  background: rgba(246, 241, 232, 0.95);
+  border: 1px solid rgba(24, 32, 34, 0.09);
+}
+
 .hero-note {
   background: linear-gradient(180deg, rgba(227, 215, 193, 0.5), rgba(255, 252, 247, 0.9));
   border: 1px solid rgba(141, 75, 49, 0.12);
@@ -265,7 +291,8 @@ textarea {
 .form-grid input,
 .form-grid select,
 .form-grid textarea,
-.admin-form input {
+.admin-form input,
+.admin-form textarea {
   width: 100%;
   border: 1px solid #d9d0c2;
   border-radius: 16px;
@@ -318,6 +345,11 @@ textarea {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
+}
+
+.intake-editor {
+  background: rgba(243, 236, 227, 0.78);
+  border: 1px solid rgba(24, 32, 34, 0.08);
 }
 
 .filter-row {

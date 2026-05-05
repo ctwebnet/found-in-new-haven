@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
-import { addDoc as addDocLite, collection as collectionLite } from "firebase/firestore/lite";
+import {
+  addDoc as addDocLite,
+  collection as collectionLite,
+  doc as docLite,
+  setDoc as setDocLite,
+} from "firebase/firestore/lite";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { db, dbWrite, storage } from "./firebase";
 
@@ -24,6 +29,7 @@ const reviewFilters = [
 ];
 
 const initialForm = {
+  submissionType: "requested",
   title: "",
   description: "",
   notes: "",
@@ -38,6 +44,14 @@ const initialForm = {
 
 const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || "";
 const adminSessionKey = "linh-admin-access";
+const intakeDocPath = ["settings", "intake"];
+const defaultIntakeSettings = {
+  activeCallTitle: "Current collecting focus",
+  activeCallDescription:
+    "We are especially interested in signs, storefront materials, neighborhood photographs, and physical artifacts connected to everyday life in New Haven.",
+  submissionDisclosure:
+    "We welcome community submissions, but we cannot accept every offered item. Museum staff review each submission to determine whether it fits current collecting priorities, condition standards, and available capacity. We will follow up if your item is a good fit for the collection.",
+};
 
 function buildStorageFileName(fileName = "upload") {
   const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, "-");
@@ -157,6 +171,34 @@ function getDonationLinks(donation) {
   return [];
 }
 
+function useIntakeSettings() {
+  const [intakeSettings, setIntakeSettings] = useState(defaultIntakeSettings);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      doc(db, ...intakeDocPath),
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setIntakeSettings(defaultIntakeSettings);
+          return;
+        }
+
+        setIntakeSettings({
+          ...defaultIntakeSettings,
+          ...snapshot.data(),
+        });
+      },
+      () => {
+        setIntakeSettings(defaultIntakeSettings);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  return intakeSettings;
+}
+
 function Layout({ children }) {
   return (
     <div className="app-shell">
@@ -178,6 +220,8 @@ function Layout({ children }) {
 }
 
 function HomePage() {
+  const intakeSettings = useIntakeSettings();
+
   return (
     <Layout>
       <section className="hero">
@@ -194,6 +238,11 @@ function HomePage() {
               the New Haven Museum. Your submission helps the museum identify
               material worth preserving, researching, and sharing.
             </p>
+            <div className="callout-box">
+              <p className="eyebrow">What We&apos;re Looking For Right Now</p>
+              <h3>{intakeSettings.activeCallTitle}</h3>
+              <p className="section-copy">{intakeSettings.activeCallDescription}</p>
+            </div>
             <div className="hero-actions">
               <Link className="button button-primary" to="/submit">
                 Submit a Story or Object
@@ -219,6 +268,7 @@ function HomePage() {
 }
 
 function SubmitPage() {
+  const intakeSettings = useIntakeSettings();
   const [formData, setFormData] = useState(initialForm);
   const [photoFiles, setPhotoFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -283,6 +333,7 @@ function SubmitPage() {
       setSubmitPhase("saving");
       const allPhotoUrls = [...photoUrls, ...uploadedPhotoUrls];
       const submissionPayload = {
+        submissionType: formData.submissionType,
         title: formData.title,
         description: formData.description,
         notes: formData.notes,
@@ -382,7 +433,31 @@ function SubmitPage() {
           </p>
         </div>
 
+        <div className="callout-box">
+          <p className="eyebrow">What We&apos;re Looking For Right Now</p>
+          <h3>{intakeSettings.activeCallTitle}</h3>
+          <p className="section-copy">{intakeSettings.activeCallDescription}</p>
+        </div>
+
+        <div className="disclosure-box">
+          <p className="eyebrow">Before You Submit</p>
+          <p className="section-copy">{intakeSettings.submissionDisclosure}</p>
+        </div>
+
         <form className="form-grid" onSubmit={handleSubmit}>
+          <label className="full-width">
+            Submission type
+            <select
+              name="submissionType"
+              value={formData.submissionType}
+              onChange={handleChange}
+              required
+            >
+              <option value="requested">I&apos;m responding to the current request</option>
+              <option value="general">I&apos;m offering something not specifically requested</option>
+            </select>
+          </label>
+
           <label>
             Title
             <input
@@ -606,6 +681,7 @@ function AdminGate({ onAuthenticated }) {
 }
 
 function ReviewPage() {
+  const intakeSettings = useIntakeSettings();
   const [isAuthed, setIsAuthed] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -620,6 +696,13 @@ function ReviewPage() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [intakeDraft, setIntakeDraft] = useState(defaultIntakeSettings);
+  const [isSavingIntake, setIsSavingIntake] = useState(false);
+  const [intakeMessage, setIntakeMessage] = useState("");
+
+  useEffect(() => {
+    setIntakeDraft(intakeSettings);
+  }, [intakeSettings]);
 
   useEffect(() => {
     if (!isAuthed) {
@@ -715,6 +798,22 @@ function ReviewPage() {
     setIsAuthed(false);
   }
 
+  async function handleIntakeSave(event) {
+    event.preventDefault();
+    setIsSavingIntake(true);
+    setIntakeMessage("");
+
+    try {
+      await setDocLite(docLite(dbWrite, ...intakeDocPath), intakeDraft, { merge: true });
+      setIntakeMessage("Collecting priorities updated.");
+    } catch (saveError) {
+      console.error(saveError);
+      setIntakeMessage("Could not update collecting priorities.");
+    } finally {
+      setIsSavingIntake(false);
+    }
+  }
+
   if (!isAuthed) {
     return <AdminGate onAuthenticated={setIsAuthed} />;
   }
@@ -735,6 +834,65 @@ function ReviewPage() {
             Lock Review
           </button>
         </div>
+
+        <section className="intake-editor">
+          <div className="section-heading">
+            <p className="eyebrow">Collecting Priorities</p>
+            <h2>Set the public donation call</h2>
+            <p className="section-copy">
+              This text appears on the homepage and submission form so donors can
+              respond to a specific request or make a general offer.
+            </p>
+          </div>
+
+          <form className="admin-form" onSubmit={handleIntakeSave}>
+            <label>
+              Call title
+              <input
+                value={intakeDraft.activeCallTitle}
+                onChange={(event) =>
+                  setIntakeDraft((current) => ({
+                    ...current,
+                    activeCallTitle: event.target.value,
+                  }))
+                }
+                required
+              />
+            </label>
+            <label>
+              Call description
+              <textarea
+                rows="4"
+                value={intakeDraft.activeCallDescription}
+                onChange={(event) =>
+                  setIntakeDraft((current) => ({
+                    ...current,
+                    activeCallDescription: event.target.value,
+                  }))
+                }
+                required
+              />
+            </label>
+            <label>
+              Donor disclosure
+              <textarea
+                rows="5"
+                value={intakeDraft.submissionDisclosure}
+                onChange={(event) =>
+                  setIntakeDraft((current) => ({
+                    ...current,
+                    submissionDisclosure: event.target.value,
+                  }))
+                }
+                required
+              />
+            </label>
+            <button className="button button-primary" disabled={isSavingIntake} type="submit">
+              {isSavingIntake ? "Saving..." : "Save Collecting Priorities"}
+            </button>
+            {intakeMessage ? <p className="message file-meta">{intakeMessage}</p> : null}
+          </form>
+        </section>
 
         <div className="filter-row">
           {reviewFilters.map((filter) => (
@@ -848,6 +1006,10 @@ function ReviewPage() {
                   <div>
                     <dt>Estimated date</dt>
                     <dd>{currentDonation.estimatedDate || "Not provided"}</dd>
+                  </div>
+                  <div>
+                    <dt>Submission type</dt>
+                    <dd>{currentDonation.submissionType || "general"}</dd>
                   </div>
                   <div>
                     <dt>Submitted</dt>
